@@ -21,6 +21,11 @@ const previewDownloadLink = document.getElementById('previewDownloadLink');
 
 let currentPath = '';
 let parentPath = null;
+const API_BASE = window.location.pathname.startsWith('/files') ? '/files' : '';
+
+function apiUrl(pathValue) {
+  return `${API_BASE}${pathValue}`;
+}
 
 const imageExtensions = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif']);
 const videoExtensions = new Set(['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v']);
@@ -38,7 +43,7 @@ function getExtension(fileName = '') {
 }
 
 function getPreviewUrl(pathValue) {
-  return `/api/preview?path=${encodeURIComponent(pathValue)}`;
+  return apiUrl(`/api/preview?path=${encodeURIComponent(pathValue)}`);
 }
 
 function closePreview() {
@@ -135,7 +140,7 @@ async function openPreview(entry) {
 
   const previewUrl = getPreviewUrl(entry.path);
   previewOpenLink.href = previewUrl;
-  previewDownloadLink.href = `/api/download?path=${encodeURIComponent(entry.path)}`;
+  previewDownloadLink.href = apiUrl(`/api/download?path=${encodeURIComponent(entry.path)}`);
 
   previewBody.innerHTML = '';
   const loading = document.createElement('p');
@@ -179,7 +184,7 @@ function setMessage(text, isError = false) {
 }
 
 async function apiFetch(url, options = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     headers: {
       ...(options.headers || {})
     },
@@ -255,7 +260,7 @@ function renderRows(entries) {
       const downloadLink = document.createElement('a');
       downloadLink.className = 'btn';
       downloadLink.textContent = 'Download';
-      downloadLink.href = `/api/download?path=${encodeURIComponent(entry.path)}`;
+      downloadLink.href = apiUrl(`/api/download?path=${encodeURIComponent(entry.path)}`);
       actionCell.appendChild(downloadLink);
     }
 
@@ -277,6 +282,10 @@ async function loadDirectory(pathValue = '') {
   currentPathText.textContent = `/${currentPath}`.replace(/\/$/, '/');
   upBtn.disabled = parentPath === null;
   renderRows(data.entries || []);
+}
+
+async function loadFiles() {
+  await loadDirectory('');
 }
 
 async function deleteEntry(pathValue, name) {
@@ -361,7 +370,7 @@ async function login(username, password) {
 
   loginPanel.classList.add('hidden');
   drivePanel.classList.remove('hidden');
-  await loadDirectory('');
+  await loadFiles();
 }
 
 async function bootstrap() {
@@ -370,7 +379,7 @@ async function bootstrap() {
     if (auth.authenticated) {
       loginPanel.classList.add('hidden');
       drivePanel.classList.remove('hidden');
-      await loadDirectory('');
+      await loadFiles();
     }
   } catch (error) {
     console.error(error);
