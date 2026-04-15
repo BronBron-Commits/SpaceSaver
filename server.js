@@ -10,8 +10,19 @@ const path = require('path');
 const app = express();
 const port = Number(process.env.PORT || 8080);
 const driveRoot = path.resolve(process.env.DRIVE_ROOT || path.join(__dirname, 'drive'));
-const adminUser = process.env.ADMIN_USER || 'admin';
-const adminPass = process.env.ADMIN_PASS || 'ChangeMeNow!';
+const users = (() => {
+  try {
+    return JSON.parse(process.env.USERS || '[]');
+  } catch {
+    return [];
+  }
+})();
+
+if (!users.length) {
+  const u = process.env.ADMIN_USER || 'admin';
+  const p = process.env.ADMIN_PASS || 'ChangeMeNow!';
+  users.push({ username: u, password: p });
+}
 
 if (!process.env.SESSION_SECRET) {
   console.warn('SESSION_SECRET is not set. Using a temporary insecure value.');
@@ -105,10 +116,11 @@ const upload = multer({
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
-  if (username === adminUser && password === adminPass) {
+  const match = users.find(u => u.username === username && u.password === password);
+  if (match) {
     req.session.authenticated = true;
-    req.session.username = adminUser;
-    return res.json({ ok: true, username: adminUser });
+    req.session.username = match.username;
+    return res.json({ ok: true, username: match.username });
   }
   return res.status(401).json({ error: 'Invalid credentials' });
 });
@@ -122,7 +134,7 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.get('/api/me', (req, res) => {
   if (req.session && req.session.authenticated) {
-    return res.json({ authenticated: true, username: req.session.username || adminUser });
+    return res.json({ authenticated: true, username: req.session.username });
   }
   return res.json({ authenticated: false });
 });
