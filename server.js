@@ -10,6 +10,7 @@ const path = require('path');
 const app = express();
 const port = Number(process.env.PORT || 8080);
 const driveRoot = path.resolve(process.env.DRIVE_ROOT || path.join(__dirname, 'drive'));
+const isProduction = process.env.NODE_ENV === 'production';
 const users = (() => {
   try {
     return JSON.parse(process.env.USERS || '[]');
@@ -84,24 +85,29 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
-        scriptSrc: ["'self'", 'https://unpkg.com', "'unsafe-eval'"],
-        connectSrc: ["'self'", 'https://unpkg.com']
+        scriptSrc: ["'self'", 'https://unpkg.com', 'https://static.cloudflareinsights.com', "'unsafe-eval'"],
+        connectSrc: ["'self'", 'https://unpkg.com', 'https://cloudflareinsights.com']
       }
     }
   })
 );
+
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(
   session({
     secret: sessionSecret,
+    proxy: isProduction,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction ? 'auto' : false,
       maxAge: 1000 * 60 * 60 * 8
     }
   })
@@ -114,13 +120,18 @@ const upload = multer({
   }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', (req, res, next) => {
   const { username, password } = req.body || {};
   const match = users.find(u => u.username === username && u.password === password);
   if (match) {
     req.session.authenticated = true;
     req.session.username = match.username;
-    return res.json({ ok: true, username: match.username });
+    return req.session.save((error) => {
+      if (error) {
+        return next(error);
+      }
+      return res.json({ ok: true, username: match.username });
+    });
   }
   return res.status(401).json({ error: 'Invalid credentials' });
 });
