@@ -19,13 +19,18 @@ function normalizeCredential(value) {
 function parseUsersFromEnv(rawUsers) {
   const raw = String(rawUsers || '').trim();
   if (!raw) {
-    return [];
+    return {
+      users: [],
+      hadParseError: false
+    };
   }
 
   const attempts = [
     raw,
     raw.replace(/^['"](.*)['"]$/s, '$1')
   ];
+
+  let hadParseError = false;
 
   for (const candidate of attempts) {
     try {
@@ -34,31 +39,55 @@ function parseUsersFromEnv(rawUsers) {
         continue;
       }
 
-      return parsed
+      return {
+        users: parsed
         .filter((entry) => entry && typeof entry === 'object')
         .map((entry) => ({
           username: normalizeCredential(entry.username),
           password: normalizeCredential(entry.password)
         }))
-        .filter((entry) => entry.username && entry.password);
+        .filter((entry) => entry.username && entry.password),
+        hadParseError
+      };
     } catch {
-      // Try the next normalization strategy.
+      hadParseError = true;
     }
   }
 
-  return [];
+  return {
+    users: [],
+    hadParseError
+  };
 }
 
-const users = parseUsersFromEnv(process.env.USERS);
+const parsedUsers = parseUsersFromEnv(process.env.USERS);
+const users = parsedUsers.users;
 
 const adminCredentials = {
-  username: normalizeCredential(process.env.ADMIN_USER || 'sarahgattis92'),
-  password: normalizeCredential(process.env.ADMIN_PASS || 'Penny!@2028')
+  username: normalizeCredential(process.env.ADMIN_USER),
+  password: normalizeCredential(process.env.ADMIN_PASS)
 };
 
-if (!users.length) {
-  users.push(adminCredentials);
+if (adminCredentials.username && adminCredentials.password) {
+  const alreadyPresent = users.some(
+    (entry) => entry.username === adminCredentials.username && entry.password === adminCredentials.password
+  );
+  if (!alreadyPresent) {
+    users.push(adminCredentials);
+  }
 }
+
+if (!users.length) {
+  // Keep a predictable, documented local-dev fallback when nothing is configured.
+  users.push({ username: 'admin', password: 'ChangeMeNow!' });
+  console.warn('No USERS/ADMIN credentials configured; using default admin fallback.');
+}
+
+if (parsedUsers.hadParseError) {
+  console.warn('USERS in environment could not be parsed as JSON; check quoting and escaping.');
+}
+
+console.log(`Auth users loaded: ${users.map((entry) => entry.username).join(', ')}`);
 
 if (!process.env.SESSION_SECRET) {
   console.warn('SESSION_SECRET is not set. Using a temporary insecure value.');
@@ -158,22 +187,21 @@ const upload = multer({
 app.post('/api/login', (req, res, next) => {
   const username = normalizeCredential(req.body && req.body.username);
   const password = normalizeCredential(req.body && req.body.password);
-  const match = users.find(u => u.username === username && u.password === password);
-  const adminMatch =
-    username === adminCredentials.username &&
-    password === adminCredentials.password &&
-    adminCredentials.username &&
-    adminCredentials.password;
 
-  const authenticatedUser = match || (adminMatch ? adminCredentials : null);
-  if (authenticatedUser) {
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  const match = users.find(u => u.username === username && u.password === password);
+
+  if (match) {
     req.session.authenticated = true;
-    req.session.username = authenticatedUser.username;
+    req.session.username = match.username;
     return req.session.save((error) => {
       if (error) {
         return next(error);
       }
-      return res.json({ ok: true, username: authenticatedUser.username });
+      return res.json({ ok: true, username: match.username });
     });
   }
   return res.status(401).json({ error: 'Invalid credentials' });
