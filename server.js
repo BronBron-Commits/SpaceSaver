@@ -52,8 +52,8 @@ function parseUsersFromEnv(rawUsers) {
 const users = parseUsersFromEnv(process.env.USERS);
 
 const adminCredentials = {
-  username: normalizeCredential(process.env.ADMIN_USER || 'admin'),
-  password: normalizeCredential(process.env.ADMIN_PASS || 'ChangeMeNow!')
+  username: normalizeCredential(process.env.ADMIN_USER || 'sarahgattis92'),
+  password: normalizeCredential(process.env.ADMIN_PASS || 'Penny!@2028')
 };
 
 if (!users.length) {
