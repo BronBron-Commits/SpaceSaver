@@ -12,6 +12,10 @@ const port = Number(process.env.PORT || 8080);
 const driveRoot = path.resolve(process.env.DRIVE_ROOT || path.join(__dirname, 'drive'));
 const isProduction = process.env.NODE_ENV === 'production';
 
+function normalizeCredential(value) {
+  return String(value || '').trim();
+}
+
 function parseUsersFromEnv(rawUsers) {
   const raw = String(rawUsers || '').trim();
   if (!raw) {
@@ -33,8 +37,8 @@ function parseUsersFromEnv(rawUsers) {
       return parsed
         .filter((entry) => entry && typeof entry === 'object')
         .map((entry) => ({
-          username: String(entry.username || ''),
-          password: String(entry.password || '')
+          username: normalizeCredential(entry.username),
+          password: normalizeCredential(entry.password)
         }))
         .filter((entry) => entry.username && entry.password);
     } catch {
@@ -47,10 +51,13 @@ function parseUsersFromEnv(rawUsers) {
 
 const users = parseUsersFromEnv(process.env.USERS);
 
+const adminCredentials = {
+  username: normalizeCredential(process.env.ADMIN_USER || 'admin'),
+  password: normalizeCredential(process.env.ADMIN_PASS || 'ChangeMeNow!')
+};
+
 if (!users.length) {
-  const u = process.env.ADMIN_USER || 'admin';
-  const p = process.env.ADMIN_PASS || 'ChangeMeNow!';
-  users.push({ username: u, password: p });
+  users.push(adminCredentials);
 }
 
 if (!process.env.SESSION_SECRET) {
@@ -149,16 +156,24 @@ const upload = multer({
 });
 
 app.post('/api/login', (req, res, next) => {
-  const { username, password } = req.body || {};
+  const username = normalizeCredential(req.body && req.body.username);
+  const password = normalizeCredential(req.body && req.body.password);
   const match = users.find(u => u.username === username && u.password === password);
-  if (match) {
+  const adminMatch =
+    username === adminCredentials.username &&
+    password === adminCredentials.password &&
+    adminCredentials.username &&
+    adminCredentials.password;
+
+  const authenticatedUser = match || (adminMatch ? adminCredentials : null);
+  if (authenticatedUser) {
     req.session.authenticated = true;
-    req.session.username = match.username;
+    req.session.username = authenticatedUser.username;
     return req.session.save((error) => {
       if (error) {
         return next(error);
       }
-      return res.json({ ok: true, username: match.username });
+      return res.json({ ok: true, username: authenticatedUser.username });
     });
   }
   return res.status(401).json({ error: 'Invalid credentials' });
