@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpaceSaver Cloud Drive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  </head>
+  <body>
+    <div class="aurora aurora-one" aria-hidden="true"></div>
+    <div class="aurora aurora-two" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <section class="hero-card">
+        <p class="eyebrow">Anywhere Access</p>
+        <h1>SpaceSaver Network Cloud</h1>
+        <p class="hero-copy">
+          Reach your private drive from any device with a fast, beautiful dashboard.
+          Upload, organize, and download your files with confidence.
+        </p>
+      </section>
+
+      <section id="loginPanel" class="panel panel-login">
+        <h2>Sign In</h2>
+        <p class="muted">Use the admin credentials set in your server environment.</p>
+        <form id="loginForm">
+          <label>
+            Username
+            <input name="username" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="btn btn-primary">Enter Drive</button>
+          <p id="loginError" class="error" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="drivePanel" class="panel panel-drive hidden">
+        <header class="toolbar">
+          <div>
+            <h2>Your Drive</h2>
+            <p id="currentPath" class="muted">/</p>
+          </div>
+          <div class="toolbar-actions">
+            <button id="upBtn" class="btn" type="button">Up</button>
+            <button id="newFolderBtn" class="btn" type="button">New Folder</button>
+            <label class="btn btn-primary upload-btn">
+              Upload
+              <input id="fileInput" type="file" multiple />
+            </label>
+            <button id="logoutBtn" class="btn" type="button">Log Out</button>
+          </div>
+        </header>
+
+        <div id="message" class="message" aria-live="polite"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Modified</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fileTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <template id="rowTemplate">
+      <tr>
+        <td class="name-cell"></td>
+        <td class="type-cell"></td>
+        <td class="size-cell"></td>
+        <td class="date-cell"></td>
+        <td class="action-cell"></td>
+      </tr>
+    </template>
+
+    <section id="previewModal" class="preview-modal hidden" aria-hidden="true">
+      <div class="preview-backdrop" id="previewBackdrop"></div>
+      <article class="preview-panel" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+        <header class="preview-header">
+          <div>
+            <h3 id="previewTitle">Preview</h3>
+            <p id="previewMeta" class="muted"></p>
+          </div>
+          <button id="closePreviewBtn" type="button" class="btn">Close</button>
+        </header>
+        <div id="previewBody" class="preview-body"></div>
+        <footer class="preview-footer">
+          <a id="previewOpenLink" class="btn" target="_blank" rel="noopener noreferrer">Open in new tab</a>
+          <a id="previewDownloadLink" class="btn btn-primary">Download</a>
+        </footer>
+      </article>
+    </section>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
