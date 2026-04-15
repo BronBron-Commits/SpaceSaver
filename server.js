@@ -11,13 +11,41 @@ const app = express();
 const port = Number(process.env.PORT || 8080);
 const driveRoot = path.resolve(process.env.DRIVE_ROOT || path.join(__dirname, 'drive'));
 const isProduction = process.env.NODE_ENV === 'production';
-const users = (() => {
-  try {
-    return JSON.parse(process.env.USERS || '[]');
-  } catch {
+
+function parseUsersFromEnv(rawUsers) {
+  const raw = String(rawUsers || '').trim();
+  if (!raw) {
     return [];
   }
-})();
+
+  const attempts = [
+    raw,
+    raw.replace(/^['"](.*)['"]$/s, '$1')
+  ];
+
+  for (const candidate of attempts) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (!Array.isArray(parsed)) {
+        continue;
+      }
+
+      return parsed
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+          username: String(entry.username || ''),
+          password: String(entry.password || '')
+        }))
+        .filter((entry) => entry.username && entry.password);
+    } catch {
+      // Try the next normalization strategy.
+    }
+  }
+
+  return [];
+}
+
+const users = parseUsersFromEnv(process.env.USERS);
 
 if (!users.length) {
   const u = process.env.ADMIN_USER || 'admin';
