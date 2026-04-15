@@ -17,11 +17,13 @@ A beautiful web app to access your network cloud drive from anywhere.
    npm install
 2. Copy environment file:
    copy .env.example .env
-3. Edit `.env` and set strong values for `ADMIN_PASS` and `SESSION_SECRET`.
+3. Edit `.env` and set strong values for `USERS` and `SESSION_SECRET`.
 4. Start the app:
    npm start
 5. Open in your browser:
    http://localhost:8080
+
+When using `USERS`, keep the JSON value wrapped in single quotes. That prevents `.env` parsing from breaking on password characters like `#`.
 
 ## Map To Your Windows Drive (Y:)
 
