@@ -286,14 +286,20 @@ app.post('/api/upload', requireAuth, upload.array('files', 30), async (req, res,
     const { absolute } = resolveInsideDrive(base);
 
     const files = req.files || [];
+    if (!files.length) {
+      return res.status(400).json({ error: 'No files were received. Please select one or more files and try again.' });
+    }
+
+    const saved = [];
     await Promise.all(
       files.map(async (file) => {
         const destination = path.join(absolute, file.originalname);
         await fs.writeFile(destination, file.buffer, { flag: 'wx' });
+        saved.push(file.originalname);
       })
     );
 
-    return res.json({ ok: true, uploaded: files.length });
+    return res.json({ ok: true, uploaded: files.length, saved });
   } catch (error) {
     if (error.code === 'EEXIST') {
       return res.status(409).json({ error: 'A file with the same name already exists' });

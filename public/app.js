@@ -366,7 +366,17 @@ async function uploadFiles() {
       body: formData
     });
 
-    setMessage(`Uploaded ${result.uploaded} file(s)`);
+    const uploadedCount = Number(result && result.uploaded) || 0;
+    const savedNames = Array.isArray(result && result.saved) ? result.saved : [];
+
+    if (uploadedCount <= 0) {
+      throw new Error('Upload completed without files being received by the server. Please try again.');
+    }
+
+    const previewNames = savedNames.slice(0, 3).join(', ');
+    const remaining = savedNames.length > 3 ? ` +${savedNames.length - 3} more` : '';
+    const details = previewNames ? ` (${previewNames}${remaining})` : '';
+    setMessage(`Uploaded ${uploadedCount} file(s)${details}`);
     await loadDirectory(currentPath);
   } catch (error) {
     setMessage(error.message, true);
