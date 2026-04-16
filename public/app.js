@@ -21,6 +21,7 @@ const previewDownloadLink = document.getElementById('previewDownloadLink');
 
 let currentPath = '';
 let parentPath = null;
+let uploadInProgress = false;
 const API_BASE = window.location.pathname.startsWith('/files') ? '/files' : '';
 
 function apiUrl(pathValue) {
@@ -308,15 +309,25 @@ async function deleteEntry(pathValue, name) {
 }
 
 async function uploadFiles() {
+  if (uploadInProgress) {
+    setMessage('An upload is already in progress.');
+    return;
+  }
+
   if (!fileInput.files || fileInput.files.length === 0) {
     return;
   }
 
+  const selectedFiles = Array.from(fileInput.files);
   const formData = new FormData();
   formData.append('path', currentPath);
-  for (const file of fileInput.files) {
+  for (const file of selectedFiles) {
     formData.append('files', file);
   }
+
+  uploadInProgress = true;
+  fileInput.disabled = true;
+  setMessage(`Uploading ${selectedFiles.length} file(s)...`);
 
   try {
     const result = await apiFetch('/api/upload', {
@@ -325,10 +336,14 @@ async function uploadFiles() {
     });
 
     setMessage(`Uploaded ${result.uploaded} file(s)`);
-    fileInput.value = '';
     await loadDirectory(currentPath);
   } catch (error) {
     setMessage(error.message, true);
+  } finally {
+    // Always clear the input so selecting the same file triggers "change" again.
+    fileInput.value = '';
+    fileInput.disabled = false;
+    uploadInProgress = false;
   }
 }
 
