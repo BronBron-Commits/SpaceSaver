@@ -11,6 +11,7 @@ const app = express();
 const port = Number(process.env.PORT || 8080);
 const driveRoot = path.resolve(process.env.DRIVE_ROOT || path.join(__dirname, 'drive'));
 const isProduction = process.env.NODE_ENV === 'production';
+const maxUploadBytes = Number(process.env.MAX_UPLOAD_BYTES || 1024 * 1024 * 200);
 
 function normalizeCredential(value) {
   return String(value || '').trim();
@@ -180,7 +181,7 @@ app.use(
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number(process.env.MAX_UPLOAD_BYTES || 1024 * 1024 * 200)
+    fileSize: maxUploadBytes
   }
 });
 
@@ -201,7 +202,7 @@ app.post('/api/login', (req, res, next) => {
       if (error) {
         return next(error);
       }
-      return res.json({ ok: true, username: match.username });
+      return res.json({ ok: true, username: match.username, maxUploadBytes });
     });
   }
   return res.status(401).json({ error: 'Invalid credentials' });
@@ -216,9 +217,9 @@ app.post('/api/logout', requireAuth, (req, res) => {
 
 app.get('/api/me', (req, res) => {
   if (req.session && req.session.authenticated) {
-    return res.json({ authenticated: true, username: req.session.username });
+    return res.json({ authenticated: true, username: req.session.username, maxUploadBytes });
   }
-  return res.json({ authenticated: false });
+  return res.json({ authenticated: false, maxUploadBytes });
 });
 
 app.get('/api/list', requireAuth, async (req, res, next) => {

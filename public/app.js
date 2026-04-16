@@ -22,6 +22,7 @@ const previewDownloadLink = document.getElementById('previewDownloadLink');
 let currentPath = '';
 let parentPath = null;
 let uploadInProgress = false;
+let maxUploadBytes = null;
 const API_BASE = window.location.pathname.startsWith('/files') ? '/files' : '';
 
 function apiUrl(pathValue) {
@@ -184,6 +185,13 @@ function setMessage(text, isError = false) {
   message.style.color = isError ? 'var(--danger)' : 'var(--accent)';
 }
 
+function setRuntimeConfig(payload) {
+  const parsed = Number(payload && payload.maxUploadBytes);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    maxUploadBytes = parsed;
+  }
+}
+
 async function apiFetch(url, options = {}) {
   const response = await fetch(apiUrl(url), {
     headers: {
@@ -193,10 +201,20 @@ async function apiFetch(url, options = {}) {
   });
 
   const isJson = (response.headers.get('content-type') || '').includes('application/json');
-  const payload = isJson ? await response.json() : null;
+  const payload = isJson ? await response.json().catch(() => null) : null;
 
   if (!response.ok) {
-    const errorMessage = payload && payload.error ? payload.error : 'Request failed';
+    let errorMessage = payload && payload.error ? payload.error : '';
+
+    if (!errorMessage && response.status === 413) {
+      const configuredLimit = Number.isFinite(maxUploadBytes) ? formatBytes(maxUploadBytes) : 'the configured server limit';
+      errorMessage = `Upload too large. Keep each file under ${configuredLimit}.`;
+    }
+
+    if (!errorMessage) {
+      errorMessage = `Request failed (${response.status})`;
+    }
+
     throw new Error(errorMessage);
   }
 
@@ -319,6 +337,19 @@ async function uploadFiles() {
   }
 
   const selectedFiles = Array.from(fileInput.files);
+
+  if (Number.isFinite(maxUploadBytes)) {
+    const tooLargeFile = selectedFiles.find((file) => file.size > maxUploadBytes);
+    if (tooLargeFile) {
+      setMessage(
+        `${tooLargeFile.name} is ${formatBytes(tooLargeFile.size)}. Max allowed is ${formatBytes(maxUploadBytes)} per file.`,
+        true
+      );
+      fileInput.value = '';
+      return;
+    }
+  }
+
   const formData = new FormData();
   formData.append('path', currentPath);
   for (const file of selectedFiles) {
@@ -377,11 +408,12 @@ async function doLogout() {
 }
 
 async function login(username, password) {
-  await apiFetch('/api/login', {
+  const auth = await apiFetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password })
   });
+  setRuntimeConfig(auth || {});
 
   loginPanel.classList.add('hidden');
   drivePanel.classList.remove('hidden');
@@ -391,6 +423,7 @@ async function login(username, password) {
 async function bootstrap() {
   try {
     const auth = await apiFetch('/api/me');
+    setRuntimeConfig(auth || {});
     if (auth.authenticated) {
       loginPanel.classList.add('hidden');
       drivePanel.classList.remove('hidden');
